@@ -1,0 +1,52 @@
+<svg viewBox="0 0 500 400" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg">
+                
+                <!-- Color Definitions (Matching the DOT file) -->
+                <defs>
+                    <g id="colors">
+                        <style>
+                            .crimson { fill: #DC143C; }
+                            .gold { fill: #FFD700; }
+                            .orange { fill: #FFA500; }
+                            .brown { fill: #A52A2A; }
+                            .tail-blue { fill: #4682B4; }
+                            .tail-green { fill: #556B2F; }
+                            .black { fill: #000000; }
+                        </style>
+                    </g>
+                </defs>
+
+                <!-- 1. Tail Feathers (Stacked and offset polygons/rects) -->
+                <g transform="translate(100, 20)">
+                    <rect x="0" y="50" width="30" height="250" class="tail-blue" transform="rotate(-15 15 175)"/>
+                    <rect x="20" y="50" width="25" height="230" class="tail-green" transform="rotate(-10 32.5 165)"/>
+                    <rect x="40" y="50" width="20" height="200" class="black" transform="rotate(-5 50 150)"/>
+                    <rect x="60" y="50" width="15" height="150" class="gold" transform="rotate(0 67.5 125)"/>
+                </g>
+
+                <!-- 2. Body (Ellipse) -->
+                <ellipse cx="280" cy="270" rx="130" ry="90" class="brown" />
+
+                <!-- 3. Head (Circle) -->
+                <circle cx="390" cy="210" r="50" class="gold" />
+                
+                <!-- 4. Comb (Polygons on top of head) -->
+                <g transform="translate(390, 210)">
+                    <polygon points="0, -50 -15, -90 15, -90" class="crimson"/>
+                    <polygon points="15, -50 0, -100 30, -100" class="crimson"/>
+                    <polygon points="-15, -50 -30, -90 0, -100" class="crimson"/>
+                </g>
+
+                <!-- 5. Wattle (Oval below beak) -->
+                <ellipse cx="400" cy="255" rx="15" ry="25" class="crimson" />
+
+                <!-- 6. Beak (Triangle) -->
+                <polygon points="435, 215 455, 205 435, 195" class="orange" />
+
+                <!-- 7. Eye (Small Black Circle) -->
+                <circle cx="375" cy="200" r="5" class="black" />
+
+                <!-- 8. Legs (Rectangles) -->
+                <rect x="300" y="350" width="20" height="60" class="orange" />
+                <rect x="330" y="350" width="20" height="60" class="orange" />
+                
+            </svg>
