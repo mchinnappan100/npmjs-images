@@ -1,0 +1,25 @@
+Date,Ticker,Company,Sector,Industry,Exchange,MarketCapCategory,Open,High,Low,Close,AdjClose,Volume,Week52High,Week52Low
+2025-01-02,AAPL,Apple Inc,Technology,Consumer Electronics,NASDAQ,Large Cap,187.10,189.98,186.50,189.72,189.72,55432100,199.62,164.08
+2025-01-02,MSFT,Microsoft Corp,Technology,Software Infrastructure,NASDAQ,Large Cap,376.45,380.21,374.90,379.55,379.55,22345100,384.30,309.45
+2025-01-02,GOOGL,Alphabet Inc,Technology,Internet Services,NASDAQ,Large Cap,138.02,140.50,137.10,139.85,139.85,30214500,151.55,121.46
+2025-01-02,AMZN,Amazon.com Inc,Consumer Cyclical,E-Commerce,NASDAQ,Large Cap,152.55,155.10,151.00,154.21,154.21,44123000,170.00,118.35
+2025-01-02,TSLA,Tesla Inc,Automotive,EV Manufacturing,NASDAQ,Large Cap,238.90,245.00,236.45,243.72,243.72,72100400,299.29,181.12
+2025-01-02,NVDA,NVIDIA Corp,Technology,Semiconductors,NASDAQ,Large Cap,485.21,492.80,480.11,491.33,491.33,39210000,505.48,379.40
+2025-01-02,JPM,JPMorgan Chase,Financial,Investment Banking,NYSE,Large Cap,170.20,172.55,169.10,171.88,171.88,14560000,179.15,135.19
+2025-01-02,XOM,Exxon Mobil,Energy,Oil & Gas,NYSE,Large Cap,102.11,104.25,101.80,103.76,103.76,18943000,120.70,95.77
+2025-01-02,WMT,Walmart Inc,Consumer Defensive,Retail,NYSE,Large Cap,160.35,162.10,159.20,161.85,161.85,12000400,169.94,136.09
+2025-01-02,AMD,Advanced Micro Devices,Technology,Semiconductors,NASDAQ,Large Cap,145.40,148.10,144.05,147.88,147.88,33521000,174.23,93.11
+2025-04-01,AAPL,Apple Inc,Technology,Consumer Electronics,NASDAQ,Large Cap,191.20,194.11,190.10,193.55,193.55,50123000,199.62,164.08
+2025-04-01,MSFT,Microsoft Corp,Technology,Software Infrastructure,NASDAQ,Large Cap,382.11,385.40,379.80,384.20,384.20,21004500,389.22,309.45
+2025-04-01,GOOGL,Alphabet Inc,Technology,Internet Services,NASDAQ,Large Cap,142.50,144.90,141.30,143.88,143.88,25123000,151.55,121.46
+2025-04-01,AMZN,Amazon.com Inc,Consumer Cyclical,E-Commerce,NASDAQ,Large Cap,158.00,160.30,156.45,159.91,159.91,38123000,170.00,118.35
+2025-04-01,TSLA,Tesla Inc,Automotive,EV Manufacturing,NASDAQ,Large Cap,251.20,255.90,248.00,254.66,254.66,69002000,299.29,181.12
+2025-07-01,AAPL,Apple Inc,Technology,Consumer Electronics,NASDAQ,Large Cap,198.44,201.20,197.30,200.55,200.55,47210000,205.00,164.08
+2025-07-01,MSFT,Microsoft Corp,Technology,Software Infrastructure,NASDAQ,Large Cap,392.10,395.22,389.00,394.40,394.40,19823000,401.20,309.45
+2025-07-01,NVDA,NVIDIA Corp,Technology,Semiconductors,NASDAQ,Large Cap,510.00,518.30,505.10,516.80,516.80,35123000,520.50,379.40
+2025-10-01,AAPL,Apple Inc,Technology,Consumer Electronics,NASDAQ,Large Cap,204.00,207.40,202.50,206.88,206.88,41002300,210.00,164.08
+2025-10-01,MSFT,Microsoft Corp,Technology,Software Infrastructure,NASDAQ,Large Cap,401.55,405.90,399.30,404.20,404.20,18234000,410.00,309.45
+2025-10-01,TSLA,Tesla Inc,Automotive,EV Manufacturing,NASDAQ,Large Cap,268.20,272.00,265.10,270.66,270.66,60200000,310.00,181.12
+2025-12-30,AAPL,Apple Inc,Technology,Consumer Electronics,NASDAQ,Large Cap,209.10,212.00,208.10,211.45,211.45,39800000,215.00,164.08
+2025-12-30,MSFT,Microsoft Corp,Technology,Software Infrastructure,NASDAQ,Large Cap,409.20,412.30,406.90,411.22,411.22,17120000,420.00,309.45
+2025-12-30,NVDA,NVIDIA Corp,Technology,Semiconductors,NASDAQ,Large Cap,525.80,530.90,520.00,528.44,528.44,29800000,535.00,379.40
