@@ -1,0 +1,21 @@
+ID,Name,Meaning,Period,Diet,Length_m,Height_m,Weight_kg,DiscoveryYear,DiscoveredBy,Country,Continent,Group
+1,Tyrannosaurus rex,Tyrant Lizard King,Late Cretaceous,Carnivore,12.3,4.0,9000,1902,Barnum Brown,USA,North America,Theropod
+2,Triceratops,Three-Horned Face,Late Cretaceous,Herbivore,9.0,3.0,6000,1887,Othniel Charles Marsh,USA,North America,Ceratopsian
+3,Stegosaurus,Roof Lizard,Late Jurassic,Herbivore,9.0,4.0,5000,1877,Othniel Charles Marsh,USA,North America,Stegosaur
+4,Velociraptor,Swift Thief,Late Cretaceous,Carnivore,2.0,0.5,15,1924,Henry Fairfield Osborn,Mongolia,Asia,Theropod
+5,Brachiosaurus,Arm Lizard,Late Jurassic,Herbivore,25.0,12.0,56000,1903,Elmer Riggs,USA,North America,Sauropod
+6,Apatosaurus,Deceptive Lizard,Late Jurassic,Herbivore,23.0,4.5,23000,1877,Othniel Charles Marsh,USA,North America,Sauropod
+7,Spinosaurus,Spine Lizard,Late Cretaceous,Carnivore,15.0,6.0,7500,1912,Ernst Stromer,Egypt,Africa,Theropod
+8,Allosaurus,Different Lizard,Late Jurassic,Carnivore,10.0,3.5,2000,1877,Othniel Charles Marsh,USA,North America,Theropod
+9,Ankylosaurus,Fused Lizard,Late Cretaceous,Herbivore,8.0,2.0,6000,1908,Barnum Brown,Canada,North America,Ankylosaur
+10,Diplodocus,Double Beam,Late Jurassic,Herbivore,27.0,4.0,15000,1878,Othniel Charles Marsh,USA,North America,Sauropod
+11,Iguanodon,Iguana Tooth,Early Cretaceous,Herbivore,10.0,3.0,3500,1825,Gideon Mantell,UK,Europe,Ornithopod
+12,Parasaurolophus,Near Crested Lizard,Late Cretaceous,Herbivore,10.0,4.0,2500,1922,William Parks,Canada,North America,Hadrosaur
+13,Deinonychus,Terrible Claw,Early Cretaceous,Carnivore,3.4,1.5,70,1969,John Ostrom,USA,North America,Theropod
+14,Argentinosaurus,Argentina Lizard,Late Cretaceous,Herbivore,35.0,12.0,80000,1993,Jose Bonaparte,Argentina,South America,Sauropod
+15,Giganotosaurus,Giant Southern Lizard,Late Cretaceous,Carnivore,13.0,4.5,8000,1993,Rodolfo Coria,Argentina,South America,Theropod
+16,Compsognathus,Pretty Jaw,Late Jurassic,Carnivore,1.0,0.4,3,1859,Johann Wagner,Germany,Europe,Theropod
+17,Plateosaurus,Flat Lizard,Late Triassic,Herbivore,8.0,2.5,4000,1837,Hermann von Meyer,Germany,Europe,Prosauropod
+18,Coelophysis,Hollow Form,Late Triassic,Carnivore,3.0,1.0,20,1889,Edward Drinker Cope,USA,North America,Theropod
+19,Styracosaurus,Spiked Lizard,Late Cretaceous,Herbivore,5.5,2.0,2700,1913,Lawrence Lambe,Canada,North America,Ceratopsian
+20,Carnotaurus,Meat-Eating Bull,Late Cretaceous,Carnivore,9.0,3.0,2100,1985,Jose Bonaparte,Argentina,South America,Theropod
