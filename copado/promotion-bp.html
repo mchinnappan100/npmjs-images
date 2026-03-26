@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Copado Promotion Best Practices</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+    }
+  </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+  <!-- Header -->
+  <header class="p-6 shadow-md bg-white dark:bg-gray-800 flex justify-between items-center">
+    <h1 class="text-2xl font-bold">🚀 Copado Deployment Best Practices</h1>
+    <button onclick="toggleTheme()" class="px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-700">
+      Toggle Theme
+    </button>
+  </header>
+
+  <!-- Content -->
+  <main class="p-8 max-w-5xl mx-auto space-y-8">
+
+    <!-- Context -->
+    <section class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow">
+      <h2 class="text-xl font-semibold mb-4">📌 Context</h2>
+      <p>
+        During a recent deployment process, a new promotion record was created even though merge conflicts had already been resolved in a prior promotion. 
+        This led to duplication of effort and unnecessary rework.
+      </p>
+    </section>
+
+    <!-- Problem -->
+    <section class="bg-red-50 dark:bg-red-900/30 p-6 rounded-2xl shadow">
+      <h2 class="text-xl font-semibold mb-4 text-red-600">⚠️ Problem Identified</h2>
+      <ul class="list-disc pl-6 space-y-2">
+        <li>New promotion record was created unnecessarily</li>
+        <li>Previously resolved merge conflicts had to be redone</li>
+        <li>Loss of time and duplication of effort</li>
+      </ul>
+    </section>
+
+    <!-- Recommended Approach -->
+    <section class="bg-green-50 dark:bg-green-900/30 p-6 rounded-2xl shadow">
+      <h2 class="text-xl font-semibold mb-4 text-green-600">✅ Recommended Approach</h2>
+      <ul class="list-disc pl-6 space-y-2">
+        <li>Create a <strong>new promotion branch</strong></li>
+        <li>Attach the branch to the <strong>existing promotion record</strong></li>
+        <li>Reuse previously resolved merge conflicts</li>
+        <li>Avoid resetting deployment state</li>
+      </ul>
+    </section>
+
+    <!-- Explanation -->
+    <section class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow">
+      <h2 class="text-xl font-semibold mb-4">🧠 Why This Matters</h2>
+      <p class="mb-4">
+        In Copado, a promotion record acts as the container for deployment state, including resolved merge conflicts. 
+        Creating a new promotion record resets this state, which leads to repeated work.
+      </p>
+      <p>
+        By reusing the same promotion record and attaching a new promotion branch, teams can maintain continuity and efficiency in the deployment lifecycle.
+      </p>
+    </section>
+
+    <!-- Best Practices -->
+    <section class="bg-blue-50 dark:bg-blue-900/30 p-6 rounded-2xl shadow">
+      <h2 class="text-xl font-semibold mb-4 text-blue-600">📘 Best Practices</h2>
+      <ul class="list-disc pl-6 space-y-2">
+        <li>Always verify if a promotion record already exists before creating a new one</li>
+        <li>Use promotion branches to continue work instead of restarting deployments</li>
+        <li>Align team on deployment strategy before execution</li>
+        <li>Document merge conflict resolutions for traceability</li>
+        <li>Minimize creation of new promotion records unless absolutely necessary</li>
+      </ul>
+    </section>
+
+    <!-- Closing -->
+    <section class="bg-gray-200 dark:bg-gray-700 p-6 rounded-2xl shadow">
+      <h2 class="text-xl font-semibold mb-4">🤝 Conclusion</h2>
+      <p>
+        Aligning on the agreed deployment approach ensures efficiency, avoids duplication, and saves valuable time. 
+        Proper use of promotion branches and promotion records is key to a streamlined Copado deployment process.
+      </p>
+    </section>
+
+  </main>
+
+  <!-- Script -->
+  <script>
+    function toggleTheme() {
+      document.documentElement.classList.toggle('dark');
+    }
+  </script>
+
+</body>
+</html>
