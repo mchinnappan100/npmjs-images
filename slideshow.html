@@ -1,0 +1,1662 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Image Slideshow</title>
+  <link rel="icon" href="https://mohan-chinnappan-n5.github.io/dfv/img/mc_favIcon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .slide {
+      display: none;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 500px;
+      width: 100%;
+      overflow: auto;
+      padding: 1rem;
+    }
+    .slide[aria-hidden="false"] { display: flex; }
+    .slide img {
+      max-width: 100%;
+      height: auto;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+    }
+    .thumb-button img {
+      width: 96px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 6px;
+      opacity: 0.7;
+      transition: all .2s;
+    }
+    .thumb-button.active img {
+      opacity: 1;
+      transform: scale(1.05);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    }
+    .control-btn {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #e5e7eb;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      backdrop-filter: blur(10px);
+    }
+    .control-btn:hover {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(147, 51, 234, 0.2) 100%);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .control-btn:active {
+      transform: translateY(0);
+    }
+    .control-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+    .control-btn.music-playing {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    /* ── Fullscreen overlay ── */
+    #fs-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 9999;
+      cursor: none;
+    }
+    #fs-overlay.active { display: flex; align-items: center; justify-content: center; }
+    #fs-overlay.cursor-visible { cursor: default; }
+
+    #fs-img {
+      max-width: 100vw;
+      max-height: 100vh;
+      object-fit: contain;
+      user-select: none;
+    }
+
+    /* top controls bar */
+    #fs-controls {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.75), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    #fs-controls.visible { opacity: 1; pointer-events: auto; }
+
+    .fs-btn {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 0.5rem;
+      color: #fff;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+    .fs-btn:hover { background: rgba(255,255,255,0.25); }
+    .fs-btn svg { width: 14px; height: 14px; }
+
+    #fs-counter {
+      margin-left: auto;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.8rem;
+    }
+
+    /* slide-up thumbnail strip */
+    #fs-thumbs {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      display: flex;
+      gap: 6px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+      transform: translateY(100%);
+      transition: transform 0.35s ease;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.3) transparent;
+    }
+    #fs-thumbs.open { transform: translateY(0); }
+    #fs-thumbs img {
+      height: 72px;
+      width: auto;
+      border-radius: 5px;
+      cursor: pointer;
+      opacity: 0.65;
+      flex-shrink: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      border: 2px solid transparent;
+    }
+    #fs-thumbs img:hover { opacity: 1; transform: scale(1.08); }
+    #fs-thumbs img.active { opacity: 1; border-color: #60a5fa; }
+
+    /* hotkey hint badge */
+    #fs-hint {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      color: rgba(255,255,255,0.35);
+      font-size: 0.7rem;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    #fs-thumbs.open ~ #fs-hint { opacity: 0; }
+
+    /* ── Folder picker panel ── */
+    #folder-panel {
+      position: fixed;
+      top: 0; left: 0;
+      width: min(360px, 100vw);
+      height: 100%;
+      background: #111827;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+      box-shadow: 8px 0 40px rgba(0,0,0,0.6);
+    }
+    #folder-panel.open { transform: translateX(0); }
+
+    #folder-panel header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    #folder-panel header h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #f9fafb;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    #folder-close {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 0.5rem;
+      color: #9ca3af;
+      width: 2rem; height: 2rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.2s, color 0.2s;
+    }
+    #folder-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+    #folder-list {
+      overflow-y: auto;
+      padding: 0.75rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.15) transparent;
+    }
+
+    .folder-card {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 0.65rem;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+      transition: background 0.18s, border-color 0.18s;
+      text-align: left;
+    }
+    .folder-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); }
+    .folder-card.active {
+      background: rgba(96,165,250,0.12);
+      border-color: rgba(96,165,250,0.45);
+    }
+    .folder-card img {
+      width: 72px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 5px;
+      flex-shrink: 0;
+    }
+    .folder-card-info { flex: 1; min-width: 0; }
+    .folder-card-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e5e7eb;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .folder-card.active .folder-card-name { color: #93c5fd; }
+    .folder-card-count {
+      font-size: 0.72rem;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    /* backdrop shared by folder + help panels */
+    #panel-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 9999;
+    }
+    #panel-backdrop.open { display: block; }
+
+    /* ── Help panel ── */
+    #help-panel {
+      position: fixed;
+      top: 0; right: 0;
+      width: min(420px, 100vw);
+      height: 100%;
+      background: #111827;
+      border-left: 1px solid rgba(255,255,255,0.08);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+      box-shadow: -8px 0 40px rgba(0,0,0,0.6);
+    }
+    #help-panel.open { transform: translateX(0); }
+
+    #help-panel header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    #help-panel header h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #f9fafb;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    #help-close {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 0.5rem;
+      color: #9ca3af;
+      width: 2rem; height: 2rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.2s, color 0.2s;
+    }
+    #help-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+    #help-body {
+      overflow-y: auto;
+      padding: 1.25rem;
+      flex: 1;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.15) transparent;
+    }
+
+    .help-section { margin-bottom: 1.5rem; }
+    .help-section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #60a5fa;
+      margin-bottom: 0.6rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid rgba(96,165,250,0.2);
+    }
+    .help-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .help-row:last-child { border-bottom: none; }
+    .help-key {
+      flex-shrink: 0;
+      display: inline-flex;
+      gap: 3px;
+      flex-wrap: wrap;
+      min-width: 110px;
+    }
+    .kbd {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-size: 0.72rem;
+      font-family: ui-monospace, monospace;
+      color: #e5e7eb;
+      white-space: nowrap;
+    }
+    .help-desc {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      line-height: 1.45;
+    }
+    .help-desc strong { color: #d1d5db; font-weight: 600; }
+
+    /* (backdrop shared — see #panel-backdrop above) */
+  </style>
+</head>
+<body class="bg-neutral-900 text-gray-100 min-h-screen flex flex-col">
+  <header class="p-4 border-b border-neutral-800">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      <h1 class="text-2xl font-bold">Image Slideshow</h1>
+      <div class="text-sm text-neutral-400">5/31/2026, 8:20:08 AM</div>
+    </div>
+  </header>
+  <main class="flex-1 max-w-6xl mx-auto p-6 w-full">
+    <div class="bg-neutral-800 rounded-2xl shadow-2xl overflow-hidden">
+      <div class="flex flex-col md:flex-row gap-6 p-6">
+        <div class="flex-1">
+          <div class="bg-black rounded-lg overflow-auto mb-4" style="max-height: calc(100vh - 280px);">
+            
+          </div>
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <div class="flex gap-3 flex-wrap">
+              <button id="prev" class="control-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                Prev
+              </button>
+              <button id="next" class="control-btn">
+                Next
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+              <button id="play" class="control-btn">
+                
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"/>
+                </svg>
+                Pause
+              </button>
+              
+              <button id="fullscreen" class="control-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                </svg>
+                Full Screen
+              </button>
+              
+              <button id="folders-open" class="control-btn" title="Folders (D)">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                </svg>
+                Folders
+              </button>
+              <button id="help-open" class="control-btn" title="Help (?)">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Help
+              </button>
+            </div>
+            <div class="text-neutral-400" id="counter">1 / 0</div>
+          </div>
+        </div>
+        <aside class="w-full md:w-80">
+          <div class="text-sm text-neutral-400 mb-3">Thumbnails</div>
+          <div id="thumbs" class="grid grid-cols-4 gap-2 overflow-y-auto max-h-96"></div>
+        </aside>
+      </div>
+    </div>
+  </main>
+  <footer class="p-4 text-center text-xs text-neutral-500 border-t border-neutral-800">
+    ← → navigate • Space = play/pause • F = fullscreen • T = thumbnails (fullscreen) • ESC = exit • D = folders • ? = help
+  </footer>
+
+  <!-- Shared backdrop for both slide-in panels -->
+  <div id="panel-backdrop"></div>
+
+  
+  <!-- Folder picker panel -->
+  <div id="folder-panel" role="dialog" aria-modal="true" aria-label="Choose folder">
+    <header>
+      <h2>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:17px;height:17px">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+        </svg>
+        Choose Folder
+      </h2>
+      <button id="folder-close" aria-label="Close">✕</button>
+    </header>
+    <div id="folder-list">
+      
+      <button class="folder-card active" data-folder-idx="0">
+        <img src="apex-codegen/apex-codegen-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">apex-codegen</div>
+          <div class="folder-card-count">4 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="1">
+        <img src="apex-doc-gen/apex-doc-gen-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">apex-doc-gen</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="2">
+        <img src="apex-explorer/apex-explorer-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">apex-explorer</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="3">
+        <img src="apex-utils/apex-utils-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">apex-utils</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="4">
+        <img src="apextest/apextest.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">apextest</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="5">
+        <img src="awesome-dash/awesome-dash.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">awesome-dash</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="6">
+        <img src="bulk2-vsce/bulk2.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">bulk2-vsce</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="7">
+        <img src="csv-compare/csv-compare-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">csv-compare</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="8">
+        <img src="csv-sql/csv-sql-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">csv-sql</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="9">
+        <img src="csv-to-table/csv-datatable-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">csv-to-table</div>
+          <div class="folder-card-count">7 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="10">
+        <img src="dangling-fields/dangling-fields-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">dangling-fields</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="11">
+        <img src="datagen/datagen-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">datagen</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="12">
+        <img src="decisiontable/decisiontable-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">decisiontable</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="13">
+        <img src="diskclean/disk-clean-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">diskclean</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="14">
+        <img src="doc-analysis/doc-aanalysis-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">doc-analysis</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="15">
+        <img src="draw-for-me/draw-for-me-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">draw-for-me</div>
+          <div class="folder-card-count">6 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="16">
+        <img src="erd/erd-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">erd</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="17">
+        <img src="erd2/erd2.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">erd2</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="18">
+        <img src="external_id/batch-report-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">external_id</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="19">
+        <img src="file-diff/file-diff.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">file-diff</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="20">
+        <img src="flow-viz/flow-viz-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">flow-viz</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="21">
+        <img src="gitpluse/gitpulse-demo-1.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">gitpluse</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="22">
+        <img src="go-ide/go-ide-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">go-ide</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="23">
+        <img src="go-simpledb/go-simpledb-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">go-simpledb</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="24">
+        <img src="grapviz/unix.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">grapviz</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="25">
+        <img src="icon-gen/icon-gen-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">icon-gen</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="26">
+        <img src="icongen-extn/vsce-icongen-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">icongen-extn</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="27">
+        <img src="image-slideshow/image-slideshow-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">image-slideshow</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="28">
+        <img src="json-diff/json-diff-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">json-diff</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="29">
+        <img src="load-plan-gen/load-plan-gen-demo-1.webm.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">load-plan-gen</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="30">
+        <img src="lwc-gen/lwc-gen-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">lwc-gen</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="31">
+        <img src="mac-apps/mac-apps-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">mac-apps</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="32">
+        <img src="mc-pdf/mc-pdf-0.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">mc-pdf</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="33">
+        <img src="mc-stocks/mc-stocks.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">mc-stocks</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="34">
+        <img src="mc-weather/mc-weather-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">mc-weather</div>
+          <div class="folder-card-count">5 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="35">
+        <img src="mcd/macOS-servers-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">mcd</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="36">
+        <img src="mcnotes/mcnotes.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">mcnotes</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="37">
+        <img src="md-slides/md-slides-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">md-slides</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="38">
+        <img src="md-viewer/md-view-00.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">md-viewer</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="39">
+        <img src="mergeforge/mergeforge-demo-1.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">mergeforge</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="40">
+        <img src="meta-compare/meta-compare-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">meta-compare</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="41">
+        <img src="mmd/mmd-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">mmd</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="42">
+        <img src="mmd-app/mmd-app-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">mmd-app</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="43">
+        <img src="obfuscli/obfuscli-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">obfuscli</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="44">
+        <img src="org-inspector/sf-org-inspector-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">org-inspector</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="45">
+        <img src="owd/owd-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">owd</div>
+          <div class="folder-card-count">4 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="46">
+        <img src="pcm-dep/pcm-dep.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">pcm-dep</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="47">
+        <img src="pdf-slideshow/pdf-slideshow-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">pdf-slideshow</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="48">
+        <img src="pe-helper/pe-helper-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">pe-helper</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="49">
+        <img src="permset/permset-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">permset</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="50">
+        <img src="permset-merger/permset-merger.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">permset-merger</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="51">
+        <img src="permset-viz/permset-viz-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">permset-viz</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="52">
+        <img src="pg-viewer/pg-viewer-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">pg-viewer</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="53">
+        <img src="pg-vsce/pg-vsce-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">pg-vsce</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="54">
+        <img src="pgdoc/pgdoc-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">pgdoc</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="55">
+        <img src="pmd/pmd-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">pmd</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="56">
+        <img src="profile-viewer/profile-detail.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">profile-viewer</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="57">
+        <img src="radar/radar-2.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">radar</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="58">
+        <img src="rest-client-extn/vsce-rest-client-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">rest-client-extn</div>
+          <div class="folder-card-count">4 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="59">
+        <img src="rubric-scorer/rubic-scorer-1.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">rubric-scorer</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="60">
+        <img src="sf-bulk-upsert/sf-bulk-upsert-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-bulk-upsert</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="61">
+        <img src="sf-connected-apps/sf-connected-apps-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-connected-apps</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="62">
+        <img src="sf-data-extract/sf-data-export-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-data-extract</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="63">
+        <img src="sf-data-storage/sf-data-storage-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-data-storage</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="64">
+        <img src="sf-data-util/sf-data-util-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-data-util</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="65">
+        <img src="sf-delete/sf-delete-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-delete</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="66">
+        <img src="sf-deploy-viewer/sf-deploy-viewer-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-deploy-viewer</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="67">
+        <img src="sf-dict/sf-data-dict-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-dict</div>
+          <div class="folder-card-count">5 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="68">
+        <img src="sf-dkim/sf-dkim-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-dkim</div>
+          <div class="folder-card-count">5 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="69">
+        <img src="sf-doc-gen/sf-doc-gen-1.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-doc-gen</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="70">
+        <img src="sf-event-monitor/sf-event-monitor-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-event-monitor</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="71">
+        <img src="sf-jwt/sf-jwt-0.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-jwt</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="72">
+        <img src="sf-kpi/sf-kpi-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-kpi</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="73">
+        <img src="sf-log-viewer/slv-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-log-viewer</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="74">
+        <img src="sf-mcp/sf-mcp-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-mcp</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="75">
+        <img src="sf-meta/sf-meta-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-meta</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="76">
+        <img src="sf-meta-commons/sf-meta-apex-viewer-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-meta-commons</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="77">
+        <img src="sf-meta-dep/sf-meta-dep-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-meta-dep</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="78">
+        <img src="sf-meta-diff/sf-meta-diff-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-meta-diff</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="79">
+        <img src="sf-metadata-central/sfmc-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-metadata-central</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="80">
+        <img src="sf-metadata-selector/help-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-metadata-selector</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="81">
+        <img src="sf-org-dashboard/sf-org-dashboard.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-org-dashboard</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="82">
+        <img src="sf-persona-mapper/sfPersona-Mapping-2.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-persona-mapper</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="83">
+        <img src="sf-query/sf-query-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-query</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="84">
+        <img src="sf-rest-client/sf-rest-client-demo.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-rest-client</div>
+          <div class="folder-card-count">5 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="85">
+        <img src="sf-schema-builder/sf-schema-builder-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-schema-builder</div>
+          <div class="folder-card-count">12 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="86">
+        <img src="sf-security/sf-security-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-security</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="87">
+        <img src="sf-seq/sf-seq-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-seq</div>
+          <div class="folder-card-count">4 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="88">
+        <img src="sf-utils/sf-utils-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-utils</div>
+          <div class="folder-card-count">7 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="89">
+        <img src="sf-uuid-filler/external-id-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sf-uuid-filler</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="90">
+        <img src="sfbatch/sfbatch-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sfbatch</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="91">
+        <img src="sfl/sfl-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sfl</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="92">
+        <img src="sfmd/sfmd-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sfmd</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="93">
+        <img src="sfoh/sfoh-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sfoh</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="94">
+        <img src="sharing-model/csv-created-by-tool.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sharing-model</div>
+          <div class="folder-card-count">10 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="95">
+        <img src="smt/smt-ai-sidekick-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">smt</div>
+          <div class="folder-card-count">9 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="96">
+        <img src="sqlite/sqlite-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">sqlite</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="97">
+        <img src="srde/srde-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">srde</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="98">
+        <img src="studio/studio-demo-2.webm.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">studio</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="99">
+        <img src="svg/rooster.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">svg</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="100">
+        <img src="talk/desktop-ai-0.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">talk</div>
+          <div class="folder-card-count">6 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="101">
+        <img src="template/sf-template-00.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">template</div>
+          <div class="folder-card-count">3 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="102">
+        <img src="test-class-runner/tcr-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">test-class-runner</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="103">
+        <img src="user-inactivate/user-inactive-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">user-inactivate</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="104">
+        <img src="user-manager/user-manager-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">user-manager</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="105">
+        <img src="weather/weather-1.gif" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">weather</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="106">
+        <img src="weekly-report/weekly-rept-0.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">weekly-report</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="107">
+        <img src="whisper-ui/whisper-ui-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">whisper-ui</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="108">
+        <img src="xml-diff/xml-diff-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">xml-diff</div>
+          <div class="folder-card-count">1 image</div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Help panel -->
+  <div id="help-panel" role="dialog" aria-modal="true" aria-label="Help">
+    <header>
+      <h2>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Keyboard &amp; Feature Guide
+      </h2>
+      <button id="help-close" aria-label="Close help">✕</button>
+    </header>
+    <div id="help-body">
+
+      <div class="help-section">
+        <div class="help-section-title">Navigation</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">←</span><span class="kbd">→</span></span>
+          <span class="help-desc">Previous / next image</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Prev</span> <span class="kbd">Next</span></span>
+          <span class="help-desc">On-screen buttons for the same</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Click thumbnail</span></span>
+          <span class="help-desc">Jump directly to any image via the thumbnail strip</span>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Playback</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Space</span></span>
+          <span class="help-desc"><strong>Play / Pause</strong> the auto-advance slideshow</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Play</span> button</span>
+          <span class="help-desc">Same as Space — starts or stops the auto-timer</span>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Fullscreen</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">F</span></span>
+          <span class="help-desc"><strong>Enter fullscreen</strong> — image takes over the entire screen, all chrome hidden</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">F11</span></span>
+          <span class="help-desc">Also enters fullscreen (browser shortcut intercepted)</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">ESC</span> or <span class="kbd">F</span></span>
+          <span class="help-desc">Exit fullscreen and return to normal view</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Mouse move</span></span>
+          <span class="help-desc">Reveals the floating controls bar at the top of the fullscreen overlay (auto-hides after 3 s)</span>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Thumbnail strip (fullscreen only)</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">T</span></span>
+          <span class="help-desc"><strong>Toggle</strong> the slide-up thumbnail strip at the bottom of the fullscreen overlay</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Thumbnails</span> btn</span>
+          <span class="help-desc">Same as T — also available in the fullscreen controls bar</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Click thumb</span></span>
+          <span class="help-desc">Jump to that image while staying in fullscreen; active image is highlighted in blue</span>
+        </div>
+      </div>
+
+      
+
+      
+      <div class="help-section">
+        <div class="help-section-title">Folder browser</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">D</span></span>
+          <span class="help-desc"><strong>Open / close</strong> the folder picker panel</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Folders</span> button</span>
+          <span class="help-desc">Same as D — shows all sub-folders with a preview thumbnail and image count</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Click folder</span></span>
+          <span class="help-desc">Instantly switches the slideshow to images in that folder</span>
+        </div>
+      </div>
+      
+
+      <div class="help-section">
+        <div class="help-section-title">Help panel</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">?</span></span>
+          <span class="help-desc">Open / close this help panel from anywhere</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Help</span> button</span>
+          <span class="help-desc">Same as ? — in the main controls bar</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">ESC</span></span>
+          <span class="help-desc">Close this panel (when fullscreen is not active)</span>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">About this slideshow</div>
+        <div class="help-row" style="flex-direction:column;gap:0.3rem">
+          <span class="help-desc"><strong>Image Slideshow</strong></span>
+          <span class="help-desc">0 images · auto-advance: 5s</span>
+          <span class="help-desc" style="color:#4b5563;font-size:0.72rem">Generated 5/31/2026, 8:20:08 AM</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Fullscreen overlay -->
+  <div id="fs-overlay">
+    <img id="fs-img" src="" alt="">
+    <div id="fs-controls">
+      <button class="fs-btn" id="fs-prev">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>Prev
+      </button>
+      <button class="fs-btn" id="fs-next">
+        Next
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+      <button class="fs-btn" id="fs-thumbs-toggle" title="T">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+        </svg>Thumbnails
+      </button>
+      <span id="fs-counter">1 / 1</span>
+      <button class="fs-btn" id="fs-exit" style="margin-left:0.5rem">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 9h4.5M15 9V4.5M15 9l5.25-5.25M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"/>
+        </svg>Exit
+      </button>
+    </div>
+    <div id="fs-thumbs"></div>
+    <div id="fs-hint">T = thumbnails &nbsp;·&nbsp; ← → navigate &nbsp;·&nbsp; ESC = exit</div>
+  </div>
+
+
+  <script>
+    let slides = document.querySelectorAll('.slide');
+    let thumbs = document.querySelectorAll('.thumb-button');
+    const prev = document.getElementById('prev');
+    const next = document.getElementById('next');
+    const playBtn = document.getElementById('play');
+    const fullscreenBtn = document.getElementById('fullscreen');
+    const counter = document.getElementById('counter');
+    
+    let i = 0, timer = null;
+
+    const playIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>Play`;
+    
+    const pauseIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"/>
+    </svg>Pause`;
+
+    const fullscreenIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+    </svg>Full Screen`;
+
+    const exitFullscreenIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 9h4.5M15 9V4.5M15 9l5.25-5.25M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"/>
+    </svg>Exit Full Screen`;
+
+    const musicPlayIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+    </svg>`;
+
+    const musicStopIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"/>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+    </svg>`;
+
+    function show(n) {
+      const total = slides.length;
+      i = (n + total) % total;
+      slides.forEach(s => s.setAttribute('aria-hidden', true));
+      thumbs.forEach(t => t.classList.remove('active'));
+      slides[i].setAttribute('aria-hidden', false);
+      thumbs[i].classList.add('active');
+      counter.textContent = (i + 1) + ' / ' + total;
+    }
+
+    prev.onclick = () => { show(i - 1); reset(); };
+    next.onclick = () => { show(i + 1); reset(); };
+    thumbs.forEach((t, idx) => t.onclick = () => { show(idx); reset(); });
+    document.addEventListener('keydown', e => {
+      if (fsActive) return; // handled by fs keydown
+      if (e.key === 'ArrowLeft') show(i - 1);
+      if (e.key === 'ArrowRight') show(i + 1);
+      if (e.key === ' ') { e.preventDefault(); playBtn.click(); }
+      if (e.key === 'f' || e.key === 'F') { e.preventDefault(); enterFS(); }
+      
+    });
+
+    const sec = 5;
+    function start() {
+      if (sec > 0) timer = setInterval(() => show(i + 1), sec * 1000);
+      playBtn.innerHTML = pauseIcon;
+    }
+    function stop() { 
+      clearInterval(timer); 
+      timer = null; 
+      playBtn.innerHTML = playIcon;
+    }
+    function reset() { if (timer) { stop(); start(); } }
+    playBtn.onclick = () => timer ? stop() : start();
+
+    // ── Fullscreen overlay ──────────────────────────────────────────────
+    const fsOverlay    = document.getElementById('fs-overlay');
+    const fsImg        = document.getElementById('fs-img');
+    const fsControls   = document.getElementById('fs-controls');
+    const fsPrev       = document.getElementById('fs-prev');
+    const fsNext       = document.getElementById('fs-next');
+    const fsExit       = document.getElementById('fs-exit');
+    const fsThumbsBar  = document.getElementById('fs-thumbs');
+    const fsThumbToggle= document.getElementById('fs-thumbs-toggle');
+    const fsCtrLabel   = document.getElementById('fs-counter');
+    let fsActive = false;
+    let fsThumbsOpen = false;
+    let fsCursorTimer = null;
+    let fsCtrlTimer = null;
+
+    function fsUpdateImage() {
+      const src = slides[i].querySelector('img').src;
+      fsImg.src = src;
+      fsCtrLabel.textContent = (i + 1) + ' / ' + slides.length;
+      fsThumbsBar.querySelectorAll('img').forEach((t, idx) => t.classList.toggle('active', idx === i));
+      const activeThumb = fsThumbsBar.querySelector('img.active');
+      if (activeThumb) activeThumb.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+    }
+
+    function showFsControls() {
+      fsControls.classList.add('visible');
+      fsOverlay.classList.add('cursor-visible');
+      clearTimeout(fsCtrlTimer);
+      clearTimeout(fsCursorTimer);
+      fsCtrlTimer = setTimeout(() => fsControls.classList.remove('visible'), 3000);
+      fsCursorTimer = setTimeout(() => fsOverlay.classList.remove('cursor-visible'), 3000);
+    }
+
+    function enterFS() {
+      fsActive = true;
+      fsUpdateImage();
+      fsOverlay.classList.add('active');
+      document.documentElement.requestFullscreen().catch(() => {});
+      showFsControls();
+    }
+
+    function exitFS() {
+      fsActive = false;
+      fsOverlay.classList.remove('active');
+      fsThumbsBar.classList.remove('open');
+      fsThumbsOpen = false;
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    }
+
+    function toggleFsThumbs() {
+      fsThumbsOpen = !fsThumbsOpen;
+      fsThumbsBar.classList.toggle('open', fsThumbsOpen);
+    }
+
+    fullscreenBtn.onclick = enterFS;
+
+    fsExit.onclick = exitFS;
+    fsPrev.onclick = () => { show(i - 1); reset(); fsUpdateImage(); };
+    fsNext.onclick = () => { show(i + 1); reset(); fsUpdateImage(); };
+    fsThumbToggle.onclick = toggleFsThumbs;
+
+    fsThumbsBar.querySelectorAll('img').forEach((t, idx) => {
+      t.onclick = () => { show(idx); reset(); fsUpdateImage(); };
+    });
+
+    fsOverlay.addEventListener('mousemove', showFsControls);
+
+    // Update overlay icon when user leaves fullscreen via browser UI
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && fsActive) exitFS();
+    });
+
+    // ── Folder picker ─────────────────────────────────────────────────────
+    const FOLDERS = [{"name":"apex-codegen","images":["apex-codegen/apex-codegen-1.png","apex-codegen/apex-codegen-2.gif","apex-codegen/apex-codegen-2.png","apex-codegen/apex-codegen-3.png"],"preview":"apex-codegen/apex-codegen-1.png"},{"name":"apex-doc-gen","images":["apex-doc-gen/apex-doc-gen-1.png"],"preview":"apex-doc-gen/apex-doc-gen-1.png"},{"name":"apex-explorer","images":["apex-explorer/apex-explorer-1.png","apex-explorer/apex-explorer-2.png"],"preview":"apex-explorer/apex-explorer-1.png"},{"name":"apex-utils","images":["apex-utils/apex-utils-1.png","apex-utils/apex-utils-2.png"],"preview":"apex-utils/apex-utils-1.png"},{"name":"apextest","images":["apextest/apextest.png"],"preview":"apextest/apextest.png"},{"name":"awesome-dash","images":["awesome-dash/awesome-dash.gif"],"preview":"awesome-dash/awesome-dash.gif"},{"name":"bulk2-vsce","images":["bulk2-vsce/bulk2.gif"],"preview":"bulk2-vsce/bulk2.gif"},{"name":"csv-compare","images":["csv-compare/csv-compare-1.png"],"preview":"csv-compare/csv-compare-1.png"},{"name":"csv-sql","images":["csv-sql/csv-sql-1.png"],"preview":"csv-sql/csv-sql-1.png"},{"name":"csv-to-table","images":["csv-to-table/csv-datatable-1.png","csv-to-table/csv-to-datatable-ai-1.png","csv-to-table/csv-to-datatable-ai-2.png","csv-to-table/csv-to-datatable-dups-1.png","csv-to-table/csv-to-datatable-dups-2.png","csv-to-table/csv-to-table-00.png","csv-to-table/csv-to-table.png"],"preview":"csv-to-table/csv-datatable-1.png"},{"name":"dangling-fields","images":["dangling-fields/dangling-fields-1.png"],"preview":"dangling-fields/dangling-fields-1.png"},{"name":"datagen","images":["datagen/datagen-1.png","datagen/datagen-2.png"],"preview":"datagen/datagen-1.png"},{"name":"decisiontable","images":["decisiontable/decisiontable-1.png","decisiontable/decisiontable-2.png"],"preview":"decisiontable/decisiontable-1.png"},{"name":"diskclean","images":["diskclean/disk-clean-1.png"],"preview":"diskclean/disk-clean-1.png"},{"name":"doc-analysis","images":["doc-analysis/doc-aanalysis-1.png","doc-analysis/doc-aanalysis-2.png","doc-analysis/doc-aanalysis-3.png"],"preview":"doc-analysis/doc-aanalysis-1.png"},{"name":"draw-for-me","images":["draw-for-me/draw-for-me-1.png","draw-for-me/draw-for-me-2.png","draw-for-me/draw-for-me-3.png","draw-for-me/draw-for-me-4.png","draw-for-me/draw-for-me-5.png","draw-for-me/voice-input-1.png"],"preview":"draw-for-me/draw-for-me-1.png"},{"name":"erd","images":["erd/erd-1.png","erd/erd-2.png","erd/erd-3.png"],"preview":"erd/erd-1.png"},{"name":"erd2","images":["erd2/erd2.gif"],"preview":"erd2/erd2.gif"},{"name":"external_id","images":["external_id/batch-report-1.png","external_id/erd-1.png"],"preview":"external_id/batch-report-1.png"},{"name":"file-diff","images":["file-diff/file-diff.png"],"preview":"file-diff/file-diff.png"},{"name":"flow-viz","images":["flow-viz/flow-viz-1.png","flow-viz/flow-viz-2.png"],"preview":"flow-viz/flow-viz-1.png"},{"name":"gitpluse","images":["gitpluse/gitpulse-demo-1.gif","gitpluse/gitpulse-demo-2.png","gitpluse/gitpulse-demo-3.png"],"preview":"gitpluse/gitpulse-demo-1.gif"},{"name":"go-ide","images":["go-ide/go-ide-1.png"],"preview":"go-ide/go-ide-1.png"},{"name":"go-simpledb","images":["go-simpledb/go-simpledb-1.png"],"preview":"go-simpledb/go-simpledb-1.png"},{"name":"grapviz","images":["grapviz/unix.png"],"preview":"grapviz/unix.png"},{"name":"icon-gen","images":["icon-gen/icon-gen-1.png"],"preview":"icon-gen/icon-gen-1.png"},{"name":"icongen-extn","images":["icongen-extn/vsce-icongen-1.png","icongen-extn/vsce-icongen-2.png"],"preview":"icongen-extn/vsce-icongen-1.png"},{"name":"image-slideshow","images":["image-slideshow/image-slideshow-1.png"],"preview":"image-slideshow/image-slideshow-1.png"},{"name":"json-diff","images":["json-diff/json-diff-1.png"],"preview":"json-diff/json-diff-1.png"},{"name":"load-plan-gen","images":["load-plan-gen/load-plan-gen-demo-1.webm.gif"],"preview":"load-plan-gen/load-plan-gen-demo-1.webm.gif"},{"name":"lwc-gen","images":["lwc-gen/lwc-gen-1.png"],"preview":"lwc-gen/lwc-gen-1.png"},{"name":"mac-apps","images":["mac-apps/mac-apps-1.png"],"preview":"mac-apps/mac-apps-1.png"},{"name":"mc-pdf","images":["mc-pdf/mc-pdf-0.png","mc-pdf/mc-pdf-1.png"],"preview":"mc-pdf/mc-pdf-0.png"},{"name":"mc-stocks","images":["mc-stocks/mc-stocks.png"],"preview":"mc-stocks/mc-stocks.png"},{"name":"mc-weather","images":["mc-weather/mc-weather-1.png","mc-weather/mc-weather-2.png","mc-weather/mc-weather-3.png","mc-weather/mc-weather-4.png","mc-weather/mc-weather-5.png"],"preview":"mc-weather/mc-weather-1.png"},{"name":"mcd","images":["mcd/macOS-servers-1.png","mcd/mcd-1.png"],"preview":"mcd/macOS-servers-1.png"},{"name":"mcnotes","images":["mcnotes/mcnotes.gif"],"preview":"mcnotes/mcnotes.gif"},{"name":"md-slides","images":["md-slides/md-slides-1.png","md-slides/md-slides-2.png","md-slides/md-slides-3.png"],"preview":"md-slides/md-slides-1.png"},{"name":"md-viewer","images":["md-viewer/md-view-00.png"],"preview":"md-viewer/md-view-00.png"},{"name":"mergeforge","images":["mergeforge/mergeforge-demo-1.gif"],"preview":"mergeforge/mergeforge-demo-1.gif"},{"name":"meta-compare","images":["meta-compare/meta-compare-1.png"],"preview":"meta-compare/meta-compare-1.png"},{"name":"mmd","images":["mmd/mmd-1.png","mmd/mmd-2.png"],"preview":"mmd/mmd-1.png"},{"name":"mmd-app","images":["mmd-app/mmd-app-1.png"],"preview":"mmd-app/mmd-app-1.png"},{"name":"obfuscli","images":["obfuscli/obfuscli-1.png"],"preview":"obfuscli/obfuscli-1.png"},{"name":"org-inspector","images":["org-inspector/sf-org-inspector-1.png"],"preview":"org-inspector/sf-org-inspector-1.png"},{"name":"owd","images":["owd/owd-1.png","owd/owd-2.png","owd/owd-3.png","owd/owd-4.png"],"preview":"owd/owd-1.png"},{"name":"pcm-dep","images":["pcm-dep/pcm-dep.gif"],"preview":"pcm-dep/pcm-dep.gif"},{"name":"pdf-slideshow","images":["pdf-slideshow/pdf-slideshow-1.png"],"preview":"pdf-slideshow/pdf-slideshow-1.png"},{"name":"pe-helper","images":["pe-helper/pe-helper-1.png"],"preview":"pe-helper/pe-helper-1.png"},{"name":"permset","images":["permset/permset-1.png","permset/permset-2.png","permset/sf-psg-viewer-1.png"],"preview":"permset/permset-1.png"},{"name":"permset-merger","images":["permset-merger/permset-merger.gif"],"preview":"permset-merger/permset-merger.gif"},{"name":"permset-viz","images":["permset-viz/permset-viz-1.png","permset-viz/permset-viz-2.png"],"preview":"permset-viz/permset-viz-1.png"},{"name":"pg-viewer","images":["pg-viewer/pg-viewer-1.png","pg-viewer/pg-viewer-2.png","pg-viewer/pg-viewer-3.png"],"preview":"pg-viewer/pg-viewer-1.png"},{"name":"pg-vsce","images":["pg-vsce/pg-vsce-1.png","pg-vsce/pg-vsce-2.png","pg-vsce/pg-vsce-3.png"],"preview":"pg-vsce/pg-vsce-1.png"},{"name":"pgdoc","images":["pgdoc/pgdoc-1.png","pgdoc/pgdoc-2.png","pgdoc/pgdoc-3.png"],"preview":"pgdoc/pgdoc-1.png"},{"name":"pmd","images":["pmd/pmd-1.png","pmd/pmd-2.png"],"preview":"pmd/pmd-1.png"},{"name":"profile-viewer","images":["profile-viewer/profile-detail.png","profile-viewer/profile-list.png"],"preview":"profile-viewer/profile-detail.png"},{"name":"radar","images":["radar/radar-2.gif"],"preview":"radar/radar-2.gif"},{"name":"rest-client-extn","images":["rest-client-extn/vsce-rest-client-1.png","rest-client-extn/vsce-rest-client-2.png","rest-client-extn/vsce-rest-client-3.png","rest-client-extn/vsce-rest-client-4.png"],"preview":"rest-client-extn/vsce-rest-client-1.png"},{"name":"rubric-scorer","images":["rubric-scorer/rubic-scorer-1.gif"],"preview":"rubric-scorer/rubic-scorer-1.gif"},{"name":"sf-bulk-upsert","images":["sf-bulk-upsert/sf-bulk-upsert-1.png","sf-bulk-upsert/sf-bulk-upsert-2.png","sf-bulk-upsert/sf-bulk-upsert-3.png"],"preview":"sf-bulk-upsert/sf-bulk-upsert-1.png"},{"name":"sf-connected-apps","images":["sf-connected-apps/sf-connected-apps-1.png"],"preview":"sf-connected-apps/sf-connected-apps-1.png"},{"name":"sf-data-extract","images":["sf-data-extract/sf-data-export-1.png"],"preview":"sf-data-extract/sf-data-export-1.png"},{"name":"sf-data-storage","images":["sf-data-storage/sf-data-storage-1.png"],"preview":"sf-data-storage/sf-data-storage-1.png"},{"name":"sf-data-util","images":["sf-data-util/sf-data-util-1.png","sf-data-util/sf-data-util-2.png"],"preview":"sf-data-util/sf-data-util-1.png"},{"name":"sf-delete","images":["sf-delete/sf-delete-1.png","sf-delete/sf-delete-2.png","sf-delete/sf-delete-3.png"],"preview":"sf-delete/sf-delete-1.png"},{"name":"sf-deploy-viewer","images":["sf-deploy-viewer/sf-deploy-viewer-1.png"],"preview":"sf-deploy-viewer/sf-deploy-viewer-1.png"},{"name":"sf-dict","images":["sf-dict/sf-data-dict-1.png","sf-dict/sf-data-dict-2.png","sf-dict/sf-dict-01.png","sf-dict/sf-dict-02.png","sf-dict/sf-dict-03.png"],"preview":"sf-dict/sf-data-dict-1.png"},{"name":"sf-dkim","images":["sf-dkim/sf-dkim-1.png","sf-dkim/sf-dkim-2.png","sf-dkim/sf-dkim-3.png","sf-dkim/sf-dkim-4.png","sf-dkim/sf-dkim-5.png"],"preview":"sf-dkim/sf-dkim-1.png"},{"name":"sf-doc-gen","images":["sf-doc-gen/sf-doc-gen-1.gif"],"preview":"sf-doc-gen/sf-doc-gen-1.gif"},{"name":"sf-event-monitor","images":["sf-event-monitor/sf-event-monitor-1.png"],"preview":"sf-event-monitor/sf-event-monitor-1.png"},{"name":"sf-jwt","images":["sf-jwt/sf-jwt-0.png","sf-jwt/sf-jwt-1.png","sf-jwt/sf-jwt-2.png"],"preview":"sf-jwt/sf-jwt-0.png"},{"name":"sf-kpi","images":["sf-kpi/sf-kpi-1.png","sf-kpi/sf-kpi-2.png"],"preview":"sf-kpi/sf-kpi-1.png"},{"name":"sf-log-viewer","images":["sf-log-viewer/slv-1.png"],"preview":"sf-log-viewer/slv-1.png"},{"name":"sf-mcp","images":["sf-mcp/sf-mcp-1.png","sf-mcp/sf-mcp-2.png","sf-mcp/sf-mcp-3.png"],"preview":"sf-mcp/sf-mcp-1.png"},{"name":"sf-meta","images":["sf-meta/sf-meta-1.png"],"preview":"sf-meta/sf-meta-1.png"},{"name":"sf-meta-commons","images":["sf-meta-commons/sf-meta-apex-viewer-1.png","sf-meta-commons/sf-meta-customlabels-1.png"],"preview":"sf-meta-commons/sf-meta-apex-viewer-1.png"},{"name":"sf-meta-dep","images":["sf-meta-dep/sf-meta-dep-1.png","sf-meta-dep/sf-meta-dep-2.png"],"preview":"sf-meta-dep/sf-meta-dep-1.png"},{"name":"sf-meta-diff","images":["sf-meta-diff/sf-meta-diff-1.png"],"preview":"sf-meta-diff/sf-meta-diff-1.png"},{"name":"sf-metadata-central","images":["sf-metadata-central/sfmc-1.png","sf-metadata-central/sfmc-2.png","sf-metadata-central/sfmc-3.png"],"preview":"sf-metadata-central/sfmc-1.png"},{"name":"sf-metadata-selector","images":["sf-metadata-selector/help-1.png","sf-metadata-selector/sf-metadata-selector-1.png"],"preview":"sf-metadata-selector/help-1.png"},{"name":"sf-org-dashboard","images":["sf-org-dashboard/sf-org-dashboard.png"],"preview":"sf-org-dashboard/sf-org-dashboard.png"},{"name":"sf-persona-mapper","images":["sf-persona-mapper/sfPersona-Mapping-2.gif"],"preview":"sf-persona-mapper/sfPersona-Mapping-2.gif"},{"name":"sf-query","images":["sf-query/sf-query-1.png"],"preview":"sf-query/sf-query-1.png"},{"name":"sf-rest-client","images":["sf-rest-client/sf-rest-client-demo.gif","sf-rest-client/sf-rest-client-graphql-1.png","sf-rest-client/sf-rest-client-help.png","sf-rest-client/sf-rest-client-soap-1.png","sf-rest-client/sf-rest-client-soap-2.png"],"preview":"sf-rest-client/sf-rest-client-demo.gif"},{"name":"sf-schema-builder","images":["sf-schema-builder/sf-schema-builder-1.png","sf-schema-builder/sf-schema-builder-2.png","sf-schema-builder/sf-schema-builder-3.png","sf-schema-builder/sf-schema-builder-4.png","sf-schema-builder/sf-schema-builder-5.png","sf-schema-builder/sf-schema-builder-6.png","sf-schema-builder/sf-schema-builder-7.png","sf-schema-builder/sf-schema-builder-8.png","sf-schema-builder/sf-schema-builder-9.png","sf-schema-builder/sf-schema-builder-10.png","sf-schema-builder/sf-schema-builder-11.png","sf-schema-builder/sf-schema-builder-12.png"],"preview":"sf-schema-builder/sf-schema-builder-1.png"},{"name":"sf-security","images":["sf-security/sf-security-1.png","sf-security/sf-settings-1.png"],"preview":"sf-security/sf-security-1.png"},{"name":"sf-seq","images":["sf-seq/sf-seq-1.png","sf-seq/sf-seq-2.png","sf-seq/sf-seq-3.png","sf-seq/sf-seq-4.png"],"preview":"sf-seq/sf-seq-1.png"},{"name":"sf-utils","images":["sf-utils/sf-utils-1.png","sf-utils/sf-utils-2.png","sf-utils/sf-utils-3.png","sf-utils/sf-utils-4.png","sf-utils/sf-utils-v2-demo-1.gif","sf-utils/sf-utils-v8-demo-1.gif","sf-utils/sf-utils.5.png"],"preview":"sf-utils/sf-utils-1.png"},{"name":"sf-uuid-filler","images":["sf-uuid-filler/external-id-1.png","sf-uuid-filler/sf-uuid-filler-2.png","sf-uuid-filler/workflow-upsert-1.png"],"preview":"sf-uuid-filler/external-id-1.png"},{"name":"sfbatch","images":["sfbatch/sfbatch-1.png","sfbatch/sfbatch-demo.gif"],"preview":"sfbatch/sfbatch-1.png"},{"name":"sfl","images":["sfl/sfl-1.png"],"preview":"sfl/sfl-1.png"},{"name":"sfmd","images":["sfmd/sfmd-1.png","sfmd/sfmd-2.png","sfmd/sfmd.gif"],"preview":"sfmd/sfmd-1.png"},{"name":"sfoh","images":["sfoh/sfoh-1.png","sfoh/sfoh-2.png","sfoh/sfoh-3.png"],"preview":"sfoh/sfoh-1.png"},{"name":"sharing-model","images":["sharing-model/csv-created-by-tool.png","sharing-model/pacakge.xml-created-by-tool.png","sharing-model/pkg-objects-xml.png","sharing-model/project-gen-1.png","sharing-model/sharing-model-1.png","sharing-model/sharing-model-before-2.png","sharing-model/sharing-settings-after-2.png","sharing-model/sharing-settings-after.png","sharing-model/sharing-settings-before.png","sharing-model/update-csv.png"],"preview":"sharing-model/csv-created-by-tool.png"},{"name":"smt","images":["smt/smt-ai-sidekick-1.png","smt/smt-aisidekick-1.png","smt/smt-aisidekick-2.png","smt/smt-aisidekick-11.png","smt/smt-compare-data-1.png","smt/smt-compare-data-2.png","smt/smt-csv-gen-1.png","smt/smt-delete-1.png","smt/smt-edit-plan-1.png"],"preview":"smt/smt-ai-sidekick-1.png"},{"name":"sqlite","images":["sqlite/sqlite-1.png"],"preview":"sqlite/sqlite-1.png"},{"name":"srde","images":["srde/srde-1.png","srde/srde-2.png"],"preview":"srde/srde-1.png"},{"name":"studio","images":["studio/studio-demo-2.webm.gif"],"preview":"studio/studio-demo-2.webm.gif"},{"name":"svg","images":["svg/rooster.png"],"preview":"svg/rooster.png"},{"name":"talk","images":["talk/desktop-ai-0.png","talk/desktop-ai-1.png","talk/desktop-ai-2.png","talk/desktop-ai-3.png","talk/os-file-viewer-1.png","talk/os-file-viewer-2.png"],"preview":"talk/desktop-ai-0.png"},{"name":"template","images":["template/sf-template-00.png","template/sf-template-01.png","template/sf-template-02.png"],"preview":"template/sf-template-00.png"},{"name":"test-class-runner","images":["test-class-runner/tcr-1.png","test-class-runner/tcr-2.png"],"preview":"test-class-runner/tcr-1.png"},{"name":"user-inactivate","images":["user-inactivate/user-inactive-1.png"],"preview":"user-inactivate/user-inactive-1.png"},{"name":"user-manager","images":["user-manager/user-manager-1.png"],"preview":"user-manager/user-manager-1.png"},{"name":"weather","images":["weather/weather-1.gif"],"preview":"weather/weather-1.gif"},{"name":"weekly-report","images":["weekly-report/weekly-rept-0.png","weekly-report/weekly-rept-1.png"],"preview":"weekly-report/weekly-rept-0.png"},{"name":"whisper-ui","images":["whisper-ui/whisper-ui-1.png"],"preview":"whisper-ui/whisper-ui-1.png"},{"name":"xml-diff","images":["xml-diff/xml-diff-1.png"],"preview":"xml-diff/xml-diff-1.png"}];
+    let activeFolderIdx = 0;
+
+    
+    const folderPanel    = document.getElementById('folder-panel');
+    const folderOpenBtn  = document.getElementById('folders-open');
+    const folderCloseBtn = document.getElementById('folder-close');
+    const folderCards    = folderPanel.querySelectorAll('.folder-card');
+    
+
+    const panelBackdrop = document.getElementById('panel-backdrop');
+
+    function openFolderPanel() {
+      folderPanel.classList.add('open');
+      panelBackdrop.classList.add('open');
+    }
+    function closeFolderPanel() {
+      folderPanel.classList.remove('open');
+      panelBackdrop.classList.remove('open');
+    }
+    function toggleFolderPanel() {
+      folderPanel.classList.contains('open') ? closeFolderPanel() : openFolderPanel();
+    }
+
+    function loadFolder(idx) {
+      const fd = FOLDERS[idx];
+      if (!fd) return;
+      activeFolderIdx = idx;
+
+      // Rebuild slides
+      const slideWrap = document.querySelector('.bg-black.rounded-lg');
+      slideWrap.innerHTML = fd.images.map((src, n) =>
+        `<div class="slide" data-index="${n}" aria-hidden="${n !== 0}"><img src="${src}" alt=""></div>`
+      ).join('');
+
+      // Rebuild sidebar thumbs
+      const thumbWrap = document.getElementById('thumbs');
+      thumbWrap.innerHTML = fd.images.map((src, n) =>
+        `<button class="thumb-button${n === 0 ? ' active' : ''}" data-index="${n}">
+           <img src="${src}" alt="" loading="lazy">
+         </button>`
+      ).join('');
+
+      // Rebuild fs thumb strip
+      fsThumbsBar.innerHTML = fd.images.map((src, n) =>
+        `<img src="${src}" data-index="${n}" alt="">`
+      ).join('');
+
+      // Refresh live NodeList references
+      slides = document.querySelectorAll('.slide');
+      thumbs = document.querySelectorAll('.thumb-button');
+
+      // Re-bind thumb clicks
+      thumbs.forEach((t, n) => { t.onclick = () => { show(n); reset(); }; });
+      fsThumbsBar.querySelectorAll('img').forEach((t, n) => {
+        t.onclick = () => { show(n); reset(); fsUpdateImage(); };
+      });
+
+      // Mark active folder card
+      
+      folderCards.forEach((c, n) => c.classList.toggle('active', n === idx));
+      
+
+      i = 0;
+      show(0);
+      if (timer) { stop(); start(); }
+      closeFolderPanel();
+    }
+
+    
+    folderOpenBtn.onclick  = openFolderPanel;
+    folderCloseBtn.onclick = closeFolderPanel;
+    folderCards.forEach((card, idx) => {
+      card.onclick = () => loadFolder(idx);
+    });
+    
+
+    // ── Help panel ────────────────────────────────────────────────────────
+    const helpPanel    = document.getElementById('help-panel');
+    const helpOpenBtn  = document.getElementById('help-open');
+    const helpCloseBtn = document.getElementById('help-close');
+
+    function openHelp() {
+      helpPanel.classList.add('open');
+      panelBackdrop.classList.add('open');
+    }
+    function closeHelp() {
+      helpPanel.classList.remove('open');
+      if (!folderPanel.classList.contains('open')) panelBackdrop.classList.remove('open');
+    }
+    function toggleHelp() {
+      helpPanel.classList.contains('open') ? closeHelp() : openHelp();
+    }
+
+    helpOpenBtn.onclick  = openHelp;
+    helpCloseBtn.onclick = closeHelp;
+    panelBackdrop.onclick = () => {
+      closeHelp();
+      closeFolderPanel();
+    };
+
+    document.addEventListener('keydown', (e) => {
+      if (!fsActive) {
+        if (e.key === 'F11') { e.preventDefault(); enterFS(); }
+        if (e.key === '?')   { e.preventDefault(); toggleHelp(); }
+        if (e.key === 'd' || e.key === 'D') { e.preventDefault(); toggleFolderPanel(); }
+        if (e.key === 'Escape') {
+          if (helpPanel.classList.contains('open')) { e.preventDefault(); closeHelp(); }
+          else if (folderPanel.classList.contains('open')) { e.preventDefault(); closeFolderPanel(); }
+        }
+        return;
+      }
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); show(i - 1); reset(); fsUpdateImage(); showFsControls(); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); show(i + 1); reset(); fsUpdateImage(); showFsControls(); }
+      if (e.key === ' ')          { e.preventDefault(); playBtn.click(); }
+      if (e.key === 'Escape')     { exitFS(); }
+      if (e.key === 't' || e.key === 'T') { e.preventDefault(); toggleFsThumbs(); }
+      if (e.key === 'f' || e.key === 'F') { e.preventDefault(); exitFS(); }
+      if (e.key === '?')          { e.preventDefault(); toggleHelp(); }
+      
+    });
+
+    
+
+    show(0);
+    if (sec > 0) start();
+  </script>
+</body>
+</html>

@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Image Slideshow</title>
+  <link rel="icon" href="https://mohan-chinnappan-n5.github.io/dfv/img/mc_favIcon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .slide {
+      display: none;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 500px;
+      width: 100%;
+      overflow: auto;
+      padding: 1rem;
+    }
+    .slide[aria-hidden="false"] { display: flex; }
+    .slide img {
+      max-width: 100%;
+      height: auto;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+    }
+    .thumb-button img {
+      width: 96px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 6px;
+      opacity: 0.7;
+      transition: all .2s;
+    }
+    .thumb-button.active img {
+      opacity: 1;
+      transform: scale(1.05);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    }
+    .control-btn {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #e5e7eb;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      backdrop-filter: blur(10px);
+    }
+    .control-btn:hover {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(147, 51, 234, 0.2) 100%);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .control-btn:active {
+      transform: translateY(0);
+    }
+    .control-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+    .control-btn.music-playing {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    /* ── Fullscreen overlay ── */
+    #fs-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 9999;
+      cursor: none;
+    }
+    #fs-overlay.active { display: flex; align-items: center; justify-content: center; }
+    #fs-overlay.cursor-visible { cursor: default; }
+
+    #fs-img {
+      max-width: 100vw;
+      max-height: 100vh;
+      object-fit: contain;
+      user-select: none;
+    }
+
+    /* top controls bar */
+    #fs-controls {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.75), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    #fs-controls.visible { opacity: 1; pointer-events: auto; }
+
+    .fs-btn {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 0.5rem;
+      color: #fff;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+    .fs-btn:hover { background: rgba(255,255,255,0.25); }
+    .fs-btn svg { width: 14px; height: 14px; }
+
+    #fs-counter {
+      margin-left: auto;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.8rem;
+    }
+
+    /* slide-up thumbnail strip */
+    #fs-thumbs {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      display: flex;
+      gap: 6px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+      transform: translateY(100%);
+      transition: transform 0.35s ease;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.3) transparent;
+    }
+    #fs-thumbs.open { transform: translateY(0); }
+    #fs-thumbs img {
+      height: 72px;
+      width: auto;
+      border-radius: 5px;
+      cursor: pointer;
+      opacity: 0.65;
+      flex-shrink: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      border: 2px solid transparent;
+    }
+    #fs-thumbs img:hover { opacity: 1; transform: scale(1.08); }
+    #fs-thumbs img.active { opacity: 1; border-color: #60a5fa; }
+
+    /* hotkey hint badge */
+    #fs-hint {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      color: rgba(255,255,255,0.35);
+      font-size: 0.7rem;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    #fs-thumbs.open ~ #fs-hint { opacity: 0; }
+
+    /* ── Folder picker panel ── */
+    #folder-panel {
+      position: fixed;
+      top: 0; left: 0;
+      width: min(360px, 100vw);
+      height: 100%;
+      background: #111827;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+      box-shadow: 8px 0 40px rgba(0,0,0,0.6);
+    }
+    #folder-panel.open { transform: translateX(0); }
+
+    #folder-panel header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    #folder-panel header h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #f9fafb;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    #folder-close {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 0.5rem;
+      color: #9ca3af;
+      width: 2rem; height: 2rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.2s, color 0.2s;
+    }
+    #folder-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+    #folder-list {
+      overflow-y: auto;
+      padding: 0.75rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.15) transparent;
+    }
+
+    .folder-card {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 0.65rem;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+      transition: background 0.18s, border-color 0.18s;
+      text-align: left;
+    }
+    .folder-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); }
+    .folder-card.active {
+      background: rgba(96,165,250,0.12);
+      border-color: rgba(96,165,250,0.45);
+    }
+    .folder-card img {
+      width: 72px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 5px;
+      flex-shrink: 0;
+    }
+    .folder-card-info { flex: 1; min-width: 0; }
+    .folder-card-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e5e7eb;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .folder-card.active .folder-card-name { color: #93c5fd; }
+    .folder-card-count {
+      font-size: 0.72rem;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    /* backdrop shared by folder + help panels */
+    #panel-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 9999;
+    }
+    #panel-backdrop.open { display: block; }
+
+    /* ── Help panel ── */
+    #help-panel {
+      position: fixed;
+      top: 0; right: 0;
+      width: min(420px, 100vw);
+      height: 100%;
+      background: #111827;
+      border-left: 1px solid rgba(255,255,255,0.08);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+      box-shadow: -8px 0 40px rgba(0,0,0,0.6);
+    }
+    #help-panel.open { transform: translateX(0); }
+
+    #help-panel header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    #help-panel header h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #f9fafb;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    #help-close {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 0.5rem;
+      color: #9ca3af;
+      width: 2rem; height: 2rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.2s, color 0.2s;
+    }
+    #help-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+    #help-body {
+      overflow-y: auto;
+      padding: 1.25rem;
+      flex: 1;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.15) transparent;
+    }
+
+    .help-section { margin-bottom: 1.5rem; }
+    .help-section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #60a5fa;
+      margin-bottom: 0.6rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid rgba(96,165,250,0.2);
+    }
+    .help-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .help-row:last-child { border-bottom: none; }
+    .help-key {
+      flex-shrink: 0;
+      display: inline-flex;
+      gap: 3px;
+      flex-wrap: wrap;
+      min-width: 110px;
+    }
+    .kbd {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-size: 0.72rem;
+      font-family: ui-monospace, monospace;
+      color: #e5e7eb;
+      white-space: nowrap;
+    }
+    .help-desc {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      line-height: 1.45;
+    }
+    .help-desc strong { color: #d1d5db; font-weight: 600; }
+
+    /* (backdrop shared — see #panel-backdrop above) */
+  </style>
+</head>
+<body class="bg-neutral-900 text-gray-100 min-h-screen flex flex-col">
+  <header class="p-4 border-b border-neutral-800">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      <h1 class="text-2xl font-bold">Image Slideshow</h1>
+      <div class="text-sm text-neutral-400">5/31/2026, 7:34:20 AM</div>
+    </div>
+  </header>
+  <main class="flex-1 max-w-6xl mx-auto p-6 w-full">
+    <div class="bg-neutral-800 rounded-2xl shadow-2xl overflow-hidden">
+      <div class="flex flex-col md:flex-row gap-6 p-6">
+        <div class="flex-1">
+          <div class="bg-black rounded-lg overflow-auto mb-4" style="max-height: calc(100vh - 280px);">
+            
+          </div>
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <div class="flex gap-3 flex-wrap">
+              <button id="prev" class="control-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                Prev
+              </button>
+              <button id="next" class="control-btn">
+                Next
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+              <button id="play" class="control-btn">
+                
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"/>
+                </svg>
+                Pause
+              </button>
+              
+              <button id="fullscreen" class="control-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                </svg>
+                Full Screen
+              </button>
+              
+              <button id="folders-open" class="control-btn" title="Folders (D)">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                </svg>
+                Folders
+              </button>
+              <button id="help-open" class="control-btn" title="Help (?)">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Help
+              </button>
+            </div>
+            <div class="text-neutral-400" id="counter">1 / 0</div>
+          </div>
+        </div>
+        <aside class="w-full md:w-80">
+          <div class="text-sm text-neutral-400 mb-3">Thumbnails</div>
+          <div id="thumbs" class="grid grid-cols-4 gap-2 overflow-y-auto max-h-96"></div>
+        </aside>
+      </div>
+    </div>
+  </main>
+  <footer class="p-4 text-center text-xs text-neutral-500 border-t border-neutral-800">
+    ← → navigate • Space = play/pause • F = fullscreen • T = thumbnails (fullscreen) • ESC = exit • D = folders • ? = help
+  </footer>
+
+  <!-- Shared backdrop for both slide-in panels -->
+  <div id="panel-backdrop"></div>
+
+  
+  <!-- Folder picker panel -->
+  <div id="folder-panel" role="dialog" aria-modal="true" aria-label="Choose folder">
+    <header>
+      <h2>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:17px;height:17px">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+        </svg>
+        Choose Folder
+      </h2>
+      <button id="folder-close" aria-label="Close">✕</button>
+    </header>
+    <div id="folder-list">
+      
+      <button class="folder-card active" data-folder-idx="0">
+        <img src="coconut/coconur-farm-1.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">coconut</div>
+          <div class="folder-card-count">2 images</div>
+        </div>
+      </button>
+      <button class="folder-card" data-folder-idx="1">
+        <img src="paddy/paddy-0.png" alt="" loading="lazy">
+        <div class="folder-card-info">
+          <div class="folder-card-name">paddy</div>
+          <div class="folder-card-count">5 images</div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Help panel -->
+  <div id="help-panel" role="dialog" aria-modal="true" aria-label="Help">
+    <header>
+      <h2>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Keyboard &amp; Feature Guide
+      </h2>
+      <button id="help-close" aria-label="Close help">✕</button>
+    </header>
+    <div id="help-body">
+
+      <div class="help-section">
+        <div class="help-section-title">Navigation</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">←</span><span class="kbd">→</span></span>
+          <span class="help-desc">Previous / next image</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Prev</span> <span class="kbd">Next</span></span>
+          <span class="help-desc">On-screen buttons for the same</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Click thumbnail</span></span>
+          <span class="help-desc">Jump directly to any image via the thumbnail strip</span>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Playback</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Space</span></span>
+          <span class="help-desc"><strong>Play / Pause</strong> the auto-advance slideshow</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Play</span> button</span>
+          <span class="help-desc">Same as Space — starts or stops the auto-timer</span>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Fullscreen</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">F</span></span>
+          <span class="help-desc"><strong>Enter fullscreen</strong> — image takes over the entire screen, all chrome hidden</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">F11</span></span>
+          <span class="help-desc">Also enters fullscreen (browser shortcut intercepted)</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">ESC</span> or <span class="kbd">F</span></span>
+          <span class="help-desc">Exit fullscreen and return to normal view</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Mouse move</span></span>
+          <span class="help-desc">Reveals the floating controls bar at the top of the fullscreen overlay (auto-hides after 3 s)</span>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Thumbnail strip (fullscreen only)</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">T</span></span>
+          <span class="help-desc"><strong>Toggle</strong> the slide-up thumbnail strip at the bottom of the fullscreen overlay</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Thumbnails</span> btn</span>
+          <span class="help-desc">Same as T — also available in the fullscreen controls bar</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Click thumb</span></span>
+          <span class="help-desc">Jump to that image while staying in fullscreen; active image is highlighted in blue</span>
+        </div>
+      </div>
+
+      
+
+      
+      <div class="help-section">
+        <div class="help-section-title">Folder browser</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">D</span></span>
+          <span class="help-desc"><strong>Open / close</strong> the folder picker panel</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Folders</span> button</span>
+          <span class="help-desc">Same as D — shows all sub-folders with a preview thumbnail and image count</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Click folder</span></span>
+          <span class="help-desc">Instantly switches the slideshow to images in that folder</span>
+        </div>
+      </div>
+      
+
+      <div class="help-section">
+        <div class="help-section-title">Help panel</div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">?</span></span>
+          <span class="help-desc">Open / close this help panel from anywhere</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">Help</span> button</span>
+          <span class="help-desc">Same as ? — in the main controls bar</span>
+        </div>
+        <div class="help-row">
+          <span class="help-key"><span class="kbd">ESC</span></span>
+          <span class="help-desc">Close this panel (when fullscreen is not active)</span>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">About this slideshow</div>
+        <div class="help-row" style="flex-direction:column;gap:0.3rem">
+          <span class="help-desc"><strong>Image Slideshow</strong></span>
+          <span class="help-desc">0 images · auto-advance: 5s</span>
+          <span class="help-desc" style="color:#4b5563;font-size:0.72rem">Generated 5/31/2026, 7:34:20 AM</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Fullscreen overlay -->
+  <div id="fs-overlay">
+    <img id="fs-img" src="" alt="">
+    <div id="fs-controls">
+      <button class="fs-btn" id="fs-prev">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>Prev
+      </button>
+      <button class="fs-btn" id="fs-next">
+        Next
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+      <button class="fs-btn" id="fs-thumbs-toggle" title="T">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+        </svg>Thumbnails
+      </button>
+      <span id="fs-counter">1 / 1</span>
+      <button class="fs-btn" id="fs-exit" style="margin-left:0.5rem">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 9h4.5M15 9V4.5M15 9l5.25-5.25M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"/>
+        </svg>Exit
+      </button>
+    </div>
+    <div id="fs-thumbs"></div>
+    <div id="fs-hint">T = thumbnails &nbsp;·&nbsp; ← → navigate &nbsp;·&nbsp; ESC = exit</div>
+  </div>
+
+
+  <script>
+    let slides = document.querySelectorAll('.slide');
+    let thumbs = document.querySelectorAll('.thumb-button');
+    const prev = document.getElementById('prev');
+    const next = document.getElementById('next');
+    const playBtn = document.getElementById('play');
+    const fullscreenBtn = document.getElementById('fullscreen');
+    const counter = document.getElementById('counter');
+    
+    let i = 0, timer = null;
+
+    const playIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>Play`;
+    
+    const pauseIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"/>
+    </svg>Pause`;
+
+    const fullscreenIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+    </svg>Full Screen`;
+
+    const exitFullscreenIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 9h4.5M15 9V4.5M15 9l5.25-5.25M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"/>
+    </svg>Exit Full Screen`;
+
+    const musicPlayIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+    </svg>`;
+
+    const musicStopIcon = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"/>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+    </svg>`;
+
+    function show(n) {
+      const total = slides.length;
+      i = (n + total) % total;
+      slides.forEach(s => s.setAttribute('aria-hidden', true));
+      thumbs.forEach(t => t.classList.remove('active'));
+      slides[i].setAttribute('aria-hidden', false);
+      thumbs[i].classList.add('active');
+      counter.textContent = (i + 1) + ' / ' + total;
+    }
+
+    prev.onclick = () => { show(i - 1); reset(); };
+    next.onclick = () => { show(i + 1); reset(); };
+    thumbs.forEach((t, idx) => t.onclick = () => { show(idx); reset(); });
+    document.addEventListener('keydown', e => {
+      if (fsActive) return; // handled by fs keydown
+      if (e.key === 'ArrowLeft') show(i - 1);
+      if (e.key === 'ArrowRight') show(i + 1);
+      if (e.key === ' ') { e.preventDefault(); playBtn.click(); }
+      if (e.key === 'f' || e.key === 'F') { e.preventDefault(); enterFS(); }
+      
+    });
+
+    const sec = 5;
+    function start() {
+      if (sec > 0) timer = setInterval(() => show(i + 1), sec * 1000);
+      playBtn.innerHTML = pauseIcon;
+    }
+    function stop() { 
+      clearInterval(timer); 
+      timer = null; 
+      playBtn.innerHTML = playIcon;
+    }
+    function reset() { if (timer) { stop(); start(); } }
+    playBtn.onclick = () => timer ? stop() : start();
+
+    // ── Fullscreen overlay ──────────────────────────────────────────────
+    const fsOverlay    = document.getElementById('fs-overlay');
+    const fsImg        = document.getElementById('fs-img');
+    const fsControls   = document.getElementById('fs-controls');
+    const fsPrev       = document.getElementById('fs-prev');
+    const fsNext       = document.getElementById('fs-next');
+    const fsExit       = document.getElementById('fs-exit');
+    const fsThumbsBar  = document.getElementById('fs-thumbs');
+    const fsThumbToggle= document.getElementById('fs-thumbs-toggle');
+    const fsCtrLabel   = document.getElementById('fs-counter');
+    let fsActive = false;
+    let fsThumbsOpen = false;
+    let fsCursorTimer = null;
+    let fsCtrlTimer = null;
+
+    function fsUpdateImage() {
+      const src = slides[i].querySelector('img').src;
+      fsImg.src = src;
+      fsCtrLabel.textContent = (i + 1) + ' / ' + slides.length;
+      fsThumbsBar.querySelectorAll('img').forEach((t, idx) => t.classList.toggle('active', idx === i));
+      const activeThumb = fsThumbsBar.querySelector('img.active');
+      if (activeThumb) activeThumb.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+    }
+
+    function showFsControls() {
+      fsControls.classList.add('visible');
+      fsOverlay.classList.add('cursor-visible');
+      clearTimeout(fsCtrlTimer);
+      clearTimeout(fsCursorTimer);
+      fsCtrlTimer = setTimeout(() => fsControls.classList.remove('visible'), 3000);
+      fsCursorTimer = setTimeout(() => fsOverlay.classList.remove('cursor-visible'), 3000);
+    }
+
+    function enterFS() {
+      fsActive = true;
+      fsUpdateImage();
+      fsOverlay.classList.add('active');
+      document.documentElement.requestFullscreen().catch(() => {});
+      showFsControls();
+    }
+
+    function exitFS() {
+      fsActive = false;
+      fsOverlay.classList.remove('active');
+      fsThumbsBar.classList.remove('open');
+      fsThumbsOpen = false;
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    }
+
+    function toggleFsThumbs() {
+      fsThumbsOpen = !fsThumbsOpen;
+      fsThumbsBar.classList.toggle('open', fsThumbsOpen);
+    }
+
+    fullscreenBtn.onclick = enterFS;
+
+    fsExit.onclick = exitFS;
+    fsPrev.onclick = () => { show(i - 1); reset(); fsUpdateImage(); };
+    fsNext.onclick = () => { show(i + 1); reset(); fsUpdateImage(); };
+    fsThumbToggle.onclick = toggleFsThumbs;
+
+    fsThumbsBar.querySelectorAll('img').forEach((t, idx) => {
+      t.onclick = () => { show(idx); reset(); fsUpdateImage(); };
+    });
+
+    fsOverlay.addEventListener('mousemove', showFsControls);
+
+    // Update overlay icon when user leaves fullscreen via browser UI
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && fsActive) exitFS();
+    });
+
+    // ── Folder picker ─────────────────────────────────────────────────────
+    const FOLDERS = [{"name":"coconut","images":["coconut/coconur-farm-1.png","coconut/coconut-farm-2.png"],"preview":"coconut/coconur-farm-1.png"},{"name":"paddy","images":["paddy/paddy-0.png","paddy/paddy-1.png","paddy/paddy-2.png","paddy/paddy-3.png","paddy/paddy-4.png"],"preview":"paddy/paddy-0.png"}];
+    let activeFolderIdx = 0;
+
+    
+    const folderPanel    = document.getElementById('folder-panel');
+    const folderOpenBtn  = document.getElementById('folders-open');
+    const folderCloseBtn = document.getElementById('folder-close');
+    const folderCards    = folderPanel.querySelectorAll('.folder-card');
+    
+
+    const panelBackdrop = document.getElementById('panel-backdrop');
+
+    function openFolderPanel() {
+      folderPanel.classList.add('open');
+      panelBackdrop.classList.add('open');
+    }
+    function closeFolderPanel() {
+      folderPanel.classList.remove('open');
+      panelBackdrop.classList.remove('open');
+    }
+    function toggleFolderPanel() {
+      folderPanel.classList.contains('open') ? closeFolderPanel() : openFolderPanel();
+    }
+
+    function loadFolder(idx) {
+      const fd = FOLDERS[idx];
+      if (!fd) return;
+      activeFolderIdx = idx;
+
+      // Rebuild slides
+      const slideWrap = document.querySelector('.bg-black.rounded-lg');
+      slideWrap.innerHTML = fd.images.map((src, n) =>
+        `<div class="slide" data-index="${n}" aria-hidden="${n !== 0}"><img src="${src}" alt=""></div>`
+      ).join('');
+
+      // Rebuild sidebar thumbs
+      const thumbWrap = document.getElementById('thumbs');
+      thumbWrap.innerHTML = fd.images.map((src, n) =>
+        `<button class="thumb-button${n === 0 ? ' active' : ''}" data-index="${n}">
+           <img src="${src}" alt="" loading="lazy">
+         </button>`
+      ).join('');
+
+      // Rebuild fs thumb strip
+      fsThumbsBar.innerHTML = fd.images.map((src, n) =>
+        `<img src="${src}" data-index="${n}" alt="">`
+      ).join('');
+
+      // Refresh live NodeList references
+      slides = document.querySelectorAll('.slide');
+      thumbs = document.querySelectorAll('.thumb-button');
+
+      // Re-bind thumb clicks
+      thumbs.forEach((t, n) => { t.onclick = () => { show(n); reset(); }; });
+      fsThumbsBar.querySelectorAll('img').forEach((t, n) => {
+        t.onclick = () => { show(n); reset(); fsUpdateImage(); };
+      });
+
+      // Mark active folder card
+      
+      folderCards.forEach((c, n) => c.classList.toggle('active', n === idx));
+      
+
+      i = 0;
+      show(0);
+      if (timer) { stop(); start(); }
+      closeFolderPanel();
+    }
+
+    
+    folderOpenBtn.onclick  = openFolderPanel;
+    folderCloseBtn.onclick = closeFolderPanel;
+    folderCards.forEach((card, idx) => {
+      card.onclick = () => loadFolder(idx);
+    });
+    
+
+    // ── Help panel ────────────────────────────────────────────────────────
+    const helpPanel    = document.getElementById('help-panel');
+    const helpOpenBtn  = document.getElementById('help-open');
+    const helpCloseBtn = document.getElementById('help-close');
+
+    function openHelp() {
+      helpPanel.classList.add('open');
+      panelBackdrop.classList.add('open');
+    }
+    function closeHelp() {
+      helpPanel.classList.remove('open');
+      if (!folderPanel.classList.contains('open')) panelBackdrop.classList.remove('open');
+    }
+    function toggleHelp() {
+      helpPanel.classList.contains('open') ? closeHelp() : openHelp();
+    }
+
+    helpOpenBtn.onclick  = openHelp;
+    helpCloseBtn.onclick = closeHelp;
+    panelBackdrop.onclick = () => {
+      closeHelp();
+      closeFolderPanel();
+    };
+
+    document.addEventListener('keydown', (e) => {
+      if (!fsActive) {
+        if (e.key === 'F11') { e.preventDefault(); enterFS(); }
+        if (e.key === '?')   { e.preventDefault(); toggleHelp(); }
+        if (e.key === 'd' || e.key === 'D') { e.preventDefault(); toggleFolderPanel(); }
+        if (e.key === 'Escape') {
+          if (helpPanel.classList.contains('open')) { e.preventDefault(); closeHelp(); }
+          else if (folderPanel.classList.contains('open')) { e.preventDefault(); closeFolderPanel(); }
+        }
+        return;
+      }
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); show(i - 1); reset(); fsUpdateImage(); showFsControls(); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); show(i + 1); reset(); fsUpdateImage(); showFsControls(); }
+      if (e.key === ' ')          { e.preventDefault(); playBtn.click(); }
+      if (e.key === 'Escape')     { exitFS(); }
+      if (e.key === 't' || e.key === 'T') { e.preventDefault(); toggleFsThumbs(); }
+      if (e.key === 'f' || e.key === 'F') { e.preventDefault(); exitFS(); }
+      if (e.key === '?')          { e.preventDefault(); toggleHelp(); }
+      
+    });
+
+    
+
+    show(0);
+    if (sec > 0) start();
+  </script>
+</body>
+</html>
